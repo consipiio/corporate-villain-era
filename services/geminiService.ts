@@ -2,7 +2,19 @@ import { GoogleGenAI } from "@google/genai";
 import { GenerationMode, Company, ToxicArchetype } from "../types";
 
 const getClient = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = import.meta.env.VITE_API_KEY || process.env.API_KEY;
+  
+  // Debug logging
+  console.log('🔑 Checking API Key...');
+  console.log('🔑 VITE_API_KEY exists:', !!import.meta.env.VITE_API_KEY);
+  console.log('🔑 API Key loaded:', apiKey ? 'YES ✅' : 'NO ❌');
+  if (apiKey) {
+    console.log('🔑 First 10 chars:', apiKey.substring(0, 10));
+  }
+  
+  return new GoogleGenAI({ 
+    apiKey: apiKey
+  });
 };
 
 /**
@@ -45,8 +57,7 @@ const isQuotaError = (error: any): boolean => {
 const PROMPTS = {
   en: {
     context: "Output Language: English. Context: Internet/TikTok culture.",
-    // Vibe instruction is replaced by deterministic archetype, but we keep context just in case
-    roastTask: "Write a 60-80 word roast predicting their future at this company. Connect their TOXIC PERSONALITY to the scandal.",
+    roastTask: "Write a 60-80 word roast predicting THEIR future at this company. Use second person (YOU/YOUR) to address them DIRECTLY. Connect THEIR TOXIC PERSONALITY to the scandal. Talk TO them, not ABOUT them.",
     eduTask: "Write a 30-40 word factual explanation of why this issue matters (ESG). No jokes, serious tone.",
     personas: {
       boomer: "Tone: Detached, slightly delusional, preaching 'hard work'. Phrases: 'Back in the 80s', 'Firm handshake'. End with: 'Honestly, just buckle down.'",
@@ -56,19 +67,53 @@ const PROMPTS = {
   },
   fr: {
     context: "Langue de sortie : FRANÇAIS UNIQUEMENT. Culture : Internet France, Twitter FR, Twitch, références JVC 18-25, codes générationnels français.",
-    roastTask: "Roast satirique de 60-80 mots. Cynisme français, critique du monde corporate/startup nation/bullshit jobs. Connecte leur ARCHÉTYPE TOXIQUE au scandale.",
+    roastTask: "Roast satirique de 60-80 mots à destination du lecteur (TU/TON/TA). Cynisme français, critique du monde corporate/startup nation/bullshit jobs. Connecte leur ARCHÉTYPE TOXIQUE au scandale. IMPORTANT: Utilise la deuxième personne (TU) pour parler DIRECTEMENT à la personne. Accorde les adjectifs et participes passés selon le genre détecté.",
     eduTask: "Explication factuelle de 30-40 mots sur l'enjeu ESG. Ton : Journalisme sérieux (Le Monde). Pas de blagues.",
     personas: {
-      boomer: "Ton : Michel, 62 ans, lecteur du Figaro. Râle sur les 'wokes' et 'l'assistanat'. Phrases: 'De mon temps', 'Faut traverser la rue'. Fin: 'Allez, va bosser.'",
-      millennial: "Ton : Trentenaire urbain, éco-anxieux mais consommateur, burnout, charge mentale. Phrases: 'En vrai c'est complexe', 'Je suis HPI'. Fin: 'Bref, je suis en PLS.'",
-      genz: "Ton : Argot lourd (Wesh, Dinguerie, Masterclass, La hess, Cringe, Chockbar, Banger, Dead ça, Pick me, C’est Gucci). Cynisme total. Fin: 'Bref, c'est mort 💀'."
+      boomer: "Ton : Michel, 62 ans, lecteur du Figaro. Râle sur les 'wokes' et 'l'assistanat'. Phrases non exhaustives: 'De mon temps', 'Faut traverser la rue'. Fin: 'Allez, va bosser.'",
+      millennial: "Ton : Trentenaire urbain, éco-anxieux mais consommateur, burnout, charge mentale. Phrases non exhaustives: 'En vrai c'est complexe', 'Je suis HPI'. Fin: 'Bref, je suis en PLS.'",
+      genz: "Ton : Argot lourd non exhaustif (Wesh, Dinguerie, Masterclass, La hess, Cringe, Chockbar, Banger, Dead ça, Pick me, C'est Gucci). Cynisme total. Fin: 'Bref, c'est mort 💀'."
     }
   }
 };
 
 /**
- * OPTIMIZED: Generates Commentary and Education using the deterministic Toxic Archetype
+ * Simple gender detection for French grammar
+ * Returns 'F' for likely female names, 'M' for male, 'N' for neutral/ambiguous
  */
+const detectGender = (name: string): 'F' | 'M' | 'N' => {
+  const nameLower = name.toLowerCase().trim();
+  
+  // Common French female name endings
+  const femaleEndings = ['ine', 'elle', 'ette', 'ie', 'ée', 'lle', 'ane', 'ana'];
+  // Common French female names
+  const femaleNames = ['louise', 'marie', 'sophie', 'julie', 'claire', 'emma', 'léa', 'chloé', 'camille', 'sarah', 'laura', 'manon', 'lisa', 'lucie', 'anaïs', 'océane', 'marine', 'zoé', 'lilou', 'jade', 'alice', 'léna', 'nina', 'eva', 'mila', 'rose', 'lina', 'lou'];
+  
+  // Common French male name endings
+  const maleEndings = ['ien', 'on', 'er', 'is', 'en', 'ain', 'in', 'el', 'im', 'an'];
+  // Common French male names
+  const maleNames = ['pierre', 'jean', 'paul', 'antoine', 'thomas', 'nicolas', 'alexandre', 'maxime', 'julien', 'romain', 'lucas', 'hugo', 'léo', 'nathan', 'louis', 'gabriel', 'arthur', 'raphael', 'theo', 'mathis', 'adam', 'simon', 'tom', 'enzo', 'jules', 'ethan'];
+  
+  // Check exact matches first
+  if (femaleNames.includes(nameLower)) return 'F';
+  if (maleNames.includes(nameLower)) return 'M';
+  
+  // Check specific endings (not 'e' alone as it's too generic)
+  for (const ending of femaleEndings) {
+    if (nameLower.endsWith(ending)) return 'F';
+  }
+  
+  for (const ending of maleEndings) {
+    if (nameLower.endsWith(ending)) return 'M';
+  }
+  
+  // If ends with 'e' or 'a' -> likely female (after checking specific patterns)
+  if (nameLower.endsWith('e') || nameLower.endsWith('a')) return 'F';
+  
+  // Default to neutral if can't determine
+  return 'N';
+};
+
 export const generateAnalysis = async (
   name: string,
   company: Company,
@@ -80,7 +125,6 @@ export const generateAnalysis = async (
 ): Promise<AnalysisResult> => {
   
   // 1. Check Cache
-  // Cache key now includes archetype title
   const cacheKey = `${name}-${company.name}-${mode}-${years}-${isFrench}-${archetype.title}`;
   if (requestCache.has(cacheKey)) {
     return requestCache.get(cacheKey)!;
@@ -90,11 +134,19 @@ export const generateAnalysis = async (
     const ai = getClient();
     const lang = isFrench ? PROMPTS.fr : PROMPTS.en;
     const persona = lang.personas[mode];
+    
+    // Detect gender for French grammar
+    const gender = isFrench ? detectGender(name) : 'N';
+    const genderNote = gender === 'F' 
+      ? "La personne est féminine : utilise les accords féminins (tu es devenue, tu seras engagée, tu t'es retrouvée, connectée, etc.)." 
+      : gender === 'M' 
+      ? "La personne est masculine : utilise les accords masculins (tu es devenu, tu seras engagé, tu t'es retrouvé, connecté, etc.)."
+      : "Genre indéterminé : utilise des formulations neutres quand possible ou privilégie le masculin neutre.";
 
-    // Construct a single complex prompt asking for JSON output
     const prompt = `
       Role: Satirical AI Engine.
       ${lang.context}
+      ${isFrench ? genderNote : ''}
       
       INPUT DATA:
       - Name: "${name}"
@@ -112,7 +164,8 @@ export const generateAnalysis = async (
       2. ROAST: ${lang.roastTask} 
          - Incorporate their archetype ("${archetype.title}") and job ("${archetype.job}") into the prediction.
          - Persona Guide: ${persona}
-         - Structure: "In ${years} years..." -> Connect archetype/job to scandal -> Personal wink -> Generational signature.
+         - CRITICAL: Use second person (${isFrench ? 'TU/TON/TA/TES' : 'YOU/YOUR'}) to address them DIRECTLY. Talk TO them, not ABOUT them.
+         - Structure: ${isFrench ? `"Dans ${years} ans, TU seras ${gender === 'F' ? 'devenue' : 'devenu'} [job] chez ${company.name}..."` : `"In ${years} years, YOU will be [job] at ${company.name}..."`} -> Connect archetype/job to scandal -> Personal wink -> Generational signature.
       3. EDUCATION: ${lang.eduTask}
 
       OUTPUT FORMAT:
@@ -138,7 +191,6 @@ export const generateAnalysis = async (
     try {
       data = JSON.parse(text);
     } catch (e) {
-      // Fallback if JSON parsing fails (rare with responseMimeType)
       console.error("JSON Parse Error", e);
       data = {
         vibe: archetype.title,
@@ -147,9 +199,7 @@ export const generateAnalysis = async (
       };
     }
 
-    // Cache the successful result
     requestCache.set(cacheKey, data);
-    
     return data;
 
   } catch (error) {
@@ -180,7 +230,6 @@ export const generateAnalysis = async (
   }
 };
 
-// Special case for 20y path (still separate as it's rarely called)
 export const generateMindfulness = async (mode: GenerationMode, isFrench: boolean): Promise<string> => {
   try {
     const ai = getClient();

@@ -433,7 +433,7 @@ const App: React.FC = () => {
                           </p>
                         </div>
 
-                        {/* Real World Context (Educational) */}
+                        {/* Real World Context with integrated reset button */}
                         <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -457,9 +457,21 @@ const App: React.FC = () => {
                           <p className="text-slate-300 text-sm mb-2">
                             <span className="font-bold text-slate-200">{t("Real Inspiration:", "Inspiration Réelle:")}</span> {result.company?.realStory}
                           </p>
-                          <p className="text-slate-400 text-sm leading-relaxed">
+                          <p className="text-slate-400 text-sm leading-relaxed mb-4">
                             {result.education}
                           </p>
+                          
+                          {/* Reset Button - Integrated here */}
+                          <button 
+                            onClick={() => {
+                              setResult(null);
+                              setName("");
+                            }} 
+                            className="text-slate-600 hover:text-slate-400 text-sm flex items-center gap-2 transition-colors group mt-4 pt-4 border-t border-slate-700/50"
+                          >
+                            <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                            {t("Try Another Scenario", "Essayer un Autre Scénario")}
+                          </button>
                         </div>
                       </div>
                     </Card>
@@ -479,69 +491,8 @@ const App: React.FC = () => {
                         </a>
                       ))}
                     </div>
-
-                    {/* Ecological Footprint Invoice */}
-                    <div className="mt-8 p-4 md:p-5 bg-slate-950 border border-dashed border-slate-800 rounded-lg relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800"></div>
-                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        
-                        <div className="space-y-1">
-                          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <Info className="w-3 h-3" />
-                            {t("Digital Invoice (Approximate)", "Facture Numérique (Estimée)")}
-                          </h3>
-                          <p className="text-slate-400 text-xs">
-                            {t("Generating these insults wasn't free for the planet.", "Générer ces insultes a un coût pour la planète.")}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-6 text-sm">
-                          <div className="flex items-center gap-2" title="Estimated CO2e for 1 AI query">
-                            <CloudFog className="w-4 h-4 text-slate-400" />
-                            <div>
-                              <span className="block font-bold text-slate-200">~0.4g CO2e</span>
-                              <span className="text-[10px] text-slate-500 block">
-                                {t("≈ 1/10 of an email", "≈ 1/10 d'un e-mail")}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2" title="Estimated cooling water evaporation">
-                            <Droplets className="w-4 h-4 text-cyan-900" />
-                            <div>
-                              <span className="block font-bold text-slate-200">~5ml {t("Water", "Eau")}</span>
-                              <span className="text-[10px] text-slate-500 block">
-                                {t("≈ 1 teaspoon", "≈ 1 c. à café")}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <a 
-                          href={AI_IMPACT_RESOURCE.url}
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="text-xs text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
-                        >
-                          {t("Read about AI Impact", "Impact de l'IA")}
-                        </a>
-                      </div>
-                    </div>
                   </>
                 )}
-                
-                {/* Reset Button */}
-                <div className="text-center pt-8">
-                  <button 
-                    onClick={() => {
-                      setResult(null);
-                      setName("");
-                    }} 
-                    className="text-slate-600 hover:text-slate-400 text-sm flex items-center justify-center gap-2 mx-auto transition-colors"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    {t("Reset Simulation", "Réinitialiser")}
-                  </button>
-                </div>
               </>
             )}
           </div>
@@ -602,6 +553,55 @@ const App: React.FC = () => {
             </a>
           </div>
         </div>
+
+        {/* Ecological Footprint Invoice - MOVED TO THE VERY END */}
+        {result && !result.errorType && !result.is20Years && (
+          <div className="mt-8 p-4 md:p-5 bg-slate-950 border border-dashed border-slate-800 rounded-lg relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800"></div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              
+              <div className="space-y-1">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <Info className="w-3 h-3" />
+                  {t("Digital Invoice (Approximate)", "Facture Numérique (Estimée)")}
+                </h3>
+                <p className="text-slate-400 text-xs">
+                  {t("Generating these insults wasn't free for the planet.", "Générer ces insultes a un coût pour la planète.")}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2" title="Estimated CO2e for 1 AI query">
+                  <CloudFog className="w-4 h-4 text-slate-400" />
+                  <div>
+                    <span className="block font-bold text-slate-200">~0.4g CO2e</span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {t("≈ 1/10 of an email", "≈ 1/10 d'un e-mail")}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2" title="Estimated cooling water evaporation">
+                  <Droplets className="w-4 h-4 text-cyan-900" />
+                  <div>
+                    <span className="block font-bold text-slate-200">~5ml {t("Water", "Eau")}</span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {t("≈ 1 teaspoon", "≈ 1 c. à café")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <a 
+                href={AI_IMPACT_RESOURCE.url}
+                target="_blank" 
+                rel="noreferrer"
+                className="text-xs text-purple-400 hover:text-purple-300 underline underline-offset-2 transition-colors"
+              >
+                {t("Read about AI Impact", "Impact de l'IA")}
+              </a>
+            </div>
+          </div>
+        )}
 
       </main>
     </div>
